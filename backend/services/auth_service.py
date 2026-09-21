@@ -166,4 +166,98 @@ class AuthService:
                 "Invalid two-step verification password."
             ) from exc
 
-        return await self._complete
+        return await self._complete_authentication(session_id)
+
+    async def logout(self, session_id: str) -> bool:
+        session = session_manager.get(session_id)
+
+        if session is None:
+            return False
+
+        try:
+            await telegram_manager.disconnect(session_id)
+        finally:
+            session_manager.remove(session_id)
+
+        return True
+
+    async def get_current_user(
+        self,
+        session_id: str,
+    ) -> dict | None:
+        session = session_manager.get(session_id)
+
+        if session is None:
+            return None
+
+        client = telegram_manager.get_client(session_id)
+
+        if client is None:
+            return None
+
+        if not client.is_connected():
+            await client.connect()
+
+        if not await client.is_user_authorized():
+            return None
+
+        user = await client.get_me()
+
+        return self._serialize_user(user)
+
+    async def _complete_authentication(
+        self,
+        session_id: str,
+    ) -> dict:
+        client = telegram_manager.get_client(session_id)
+
+        if client is None:
+            raise SessionError(
+                "Telegram client is unavailable."
+            )
+
+        if not await client.is_user_authorized():
+            raise TelegramAuthenticationError(
+                "Telegram authorization was not completed."
+            )
+
+        user = await client.get_me()
+
+        string_session = StringSession.save(
+            client.session
+        )
+
+        session_manager.update_telegram_session(
+            session_id,
+            string_session,
+        )
+
+        session_manager.update_metadata(
+            session_id,
+            {
+                "authenticated": True,
+                "auth_stage": "authenticated",
+                "user_id": user.id,
+            },
+        )
+
+        return {
+            "success": True,
+            "session_id": session_id,
+            "requires_code": False,
+            "requires_password": False,
+            "message": "Authentication successful.",
+        }
+
+    @staticmethod
+    def _serialize_user(user) -> dict:
+        return {
+            "id": user.id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "username": user.username,
+            "phone": user.phone,
+        }
+
+
+auth_service = AuthService()
