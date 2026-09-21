@@ -1,97 +1,36 @@
 from __future__ import annotations
 
-from typing import Any
-
-from backend.core.exceptions import SessionError
+from backend.core.exceptions import (
+    SessionError,
+    TelegramAuthenticationError,
+)
 from backend.core.pyrogram_client import pyrogram_manager
-from backend.core.sessions import session_manager
 
 
-class PyrogramService:
-    """Provide high-level operations through Pyrogram."""
+class PyrogramAuthService:
+    """Handle temporary Pyrogram Telegram authentication."""
 
-    def _validate_session(
+    async def create_phone_login(
         self,
         session_id: str,
-    ) -> None:
-        session = session_manager.get(session_id)
-
-        if session is None:
-            raise SessionError(
-                "Telefarm session has expired."
+        phone_number: str,
+    ) -> dict:
+        try:
+            client = await pyrogram_manager.connect(
+                session_key=session_id,
             )
 
-    def _get_client(
-        self,
-        session_id: str,
-    ):
-        self._validate_session(session_id)
-
-        client = pyrogram_manager.get_client(
-            session_id
-        )
-
-        if client is None:
-            raise SessionError(
-                "Pyrogram client is not available."
+            sent_code = await client.send_code(
+                phone_number,
             )
 
-        return client
-
-    async def get_me(
-        self,
-        session_id: str,
-    ) -> Any:
-        """Return the authenticated user through Pyrogram."""
-        client = self._get_client(session_id)
-
-        if not client.is_connected:
-            await client.start()
-
-        return await client.get_me()
-
-    async def get_chat(
-        self,
-        session_id: str,
-        chat_id: int | str,
-    ) -> Any:
-        """Retrieve a chat through Pyrogram."""
-        client = self._get_client(session_id)
-
-        return await client.get_chat(chat_id)
-
-    async def get_chat_history(
-        self,
-        session_id: str,
-        chat_id: int | str,
-        limit: int = 50,
-    ) -> list[Any]:
-        """Retrieve chat history through Pyrogram."""
-        client = self._get_client(session_id)
-
-        messages = []
-
-        async for message in client.get_chat_history(
-            chat_id,
-            limit=limit,
-        ):
-            messages.append(message)
-
-        return messages
-
-    async def send_message(
-        self,
-        session_id: str,
-        chat_id: int | str,
-        text: str,
-    ) -> Any:
-        """Send a text message through Pyrogram."""
-        client = self._get_client(session_id)
-
-        return await client.send_message(
-            chat_id=chat_id,
-            text=text,
-        )
-
-
-pyrogram_service = PyrogramService()
+            return {
+                "success": True,
+                "code_type": type(sent_code.type).__name__,
+                "next_type": (
+                    type(sent_code.next_type).__name__
+                    if sent_code.next_type is not None
+                    else None
+                ),
+                "code_timeout": sent_code.timeout,
+               
