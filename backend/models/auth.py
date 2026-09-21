@@ -4,21 +4,32 @@ from pydantic import BaseModel, Field
 
 
 class PhoneLoginRequest(BaseModel):
-    phone_number: str = Field(min_length=5, max_length=32)
+    phone_number: str = Field(
+        min_length=5,
+        max_length=32,
+    )
 
 
 class CodeVerificationRequest(BaseModel):
     session_id: str
-    code: str = Field(min_length=1, max_length=32)
+    code: str = Field(
+        min_length=1,
+        max_length=32,
+    )
 
 
 class TwoFactorRequest(BaseModel):
     session_id: str
-    password: str = Field(min_length=1, max_length=256)
+    password: str = Field(
+        min_length=1,
+        max_length=256,
+    )
 
 
 class SessionLoginRequest(BaseModel):
-    session: str = Field(min_length=1)
+    session: str = Field(
+        min_length=1,
+    )
 
 
 class LogoutRequest(BaseModel):
@@ -30,6 +41,11 @@ class AuthResponse(BaseModel):
     session_id: str | None = None
     requires_code: bool = False
     requires_password: bool = False
+
+    code_type: str | None = None
+    next_type: str | None = None
+    code_timeout: int | None = None
+
     message: str
 
 
