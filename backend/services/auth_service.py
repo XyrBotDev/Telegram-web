@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from telethon.errors import SessionPasswordNeededError
-from telethon.sessions import StringSession
-
 from backend.core.exceptions import (
     SessionError,
     TelegramAuthenticationError,
 )
+from backend.core.pyrogram_client import pyrogram_manager
 from backend.core.sessions import session_manager
-from backend.core.telegram import telegram_manager
+from backend.services.pyrogram_service import pyrogram_auth_service
 
 
 class AuthService:
-    async def create_phone_login(self, phone_number: str) -> dict:
+    async def create_phone_login(
+        self,
+        phone_number: str,
+    ) -> dict:
         phone_number = phone_number.strip()
 
         if not phone_number:
@@ -24,35 +25,30 @@ class AuthService:
             metadata={
                 "phone_number": phone_number,
                 "auth_stage": "code",
+                "auth_client": "pyrogram",
             }
         )
 
         try:
-            client = await telegram_manager.connect(
-                session_key=app_session.session_id,
-                session=StringSession(),
+            result = await pyrogram_auth_service.create_phone_login(
+                session_id=app_session.session_id,
+                phone_number=phone_number,
             )
 
-            sent_code = await client.send_code_request(
-                phone_number
-            )
+            phone_code_hash = result.get("phone_code_hash")
 
-            code_type = type(sent_code.type).__name__
-
-            next_type = (
-                type(sent_code.next_type).__name__
-                if sent_code.next_type is not None
-                else None
-            )
+            if not phone_code_hash:
+                raise TelegramAuthenticationError(
+                    "Telegram did not return a verification code hash."
+                )
 
             session_manager.update_metadata(
                 app_session.session_id,
                 {
-                    "phone_code_hash": sent_code.phone_code_hash,
-                    "code_type": code_type,
-                    "next_type": next_type,
-                    "code_timeout": sent_code.timeout,
-                    "auth_stage": "code",
+                    "phone_code_hash": phone_code_hash,
+                    "code_type": result.get("code_type"),
+                    "next_type": result.get("next_type"),
+                    "code_timeout": result.get("code_timeout"),
                 },
             )
 
@@ -61,21 +57,23 @@ class AuthService:
                 "session_id": app_session.session_id,
                 "requires_code": True,
                 "requires_password": False,
-                "code_type": code_type,
-                "next_type": next_type,
-                "code_timeout": sent_code.timeout,
-                "message": "Verification code request accepted.",
+                "code_type": result.get("code_type"),
+                "next_type": result.get("next_type"),
+                "code_timeout": result.get("code_timeout"),
+                "message": result.get(
+                    "message",
+                    "Verification code request accepted.",
+                ),
             }
 
-        except Exception as exc:
-            session_manager.remove(app_session.session_id)
-            await telegram_manager.disconnect(
+        except Exception:
+            await pyrogram_manager.disconnect(
                 app_session.session_id
             )
-
-            raise TelegramAuthenticationError(
-                "Unable to send the verification code."
-            ) from exc
+            session_manager.remove(
+                app_session.session_id
+            )
+            raise
 
     async def verify_code(
         self,
@@ -89,29 +87,27 @@ class AuthService:
                 "Authentication session has expired."
             )
 
-        phone_number = session.metadata.get("phone_number")
-        phone_code_hash = session.metadata.get("phone_code_hash")
+        phone_number = session.metadata.get(
+            "phone_number"
+        )
+
+        phone_code_hash = session.metadata.get(
+            "phone_code_hash"
+        )
 
         if not phone_number or not phone_code_hash:
             raise TelegramAuthenticationError(
                 "Authentication information is incomplete."
             )
 
-        client = telegram_manager.get_client(session_id)
+        result = await pyrogram_auth_service.verify_code(
+            session_id=session_id,
+            phone_number=phone_number,
+            phone_code_hash=phone_code_hash,
+            code=code,
+        )
 
-        if client is None:
-            raise SessionError(
-                "Telegram authentication client is unavailable."
-            )
-
-        try:
-            await client.sign_in(
-                phone=phone_number,
-                code=code,
-                phone_code_hash=phone_code_hash,
-            )
-
-        except SessionPasswordNeededError:
+        if result.get("requires_password"):
             session_manager.update_metadata(
                 session_id,
                 {
@@ -124,15 +120,12 @@ class AuthService:
                 "session_id": session_id,
                 "requires_code": False,
                 "requires_password": True,
-                "message": "Two-step verification is required.",
+                "message": result["message"],
             }
 
-        except Exception as exc:
-            raise TelegramAuthenticationError(
-                "Invalid or expired verification code."
-            ) from exc
-
-        return await self._complete_authentication(session_id)
+        return await self._complete_authentication(
+            session_id
+        )
 
     async def verify_password(
         self,
@@ -146,38 +139,37 @@ class AuthService:
                 "Authentication session has expired."
             )
 
-        if not password:
+        result = await pyrogram_auth_service.verify_password(
+            session_id=session_id,
+            password=password,
+        )
+
+        if not result.get("success"):
             raise TelegramAuthenticationError(
-                "Password cannot be empty."
+                "Two-step verification failed."
             )
 
-        client = telegram_manager.get_client(session_id)
+        return await self._complete_authentication(
+            session_id
+        )
 
-        if client is None:
-            raise SessionError(
-                "Telegram authentication client is unavailable."
-            )
-
-        try:
-            await client.sign_in(password=password)
-
-        except Exception as exc:
-            raise TelegramAuthenticationError(
-                "Invalid two-step verification password."
-            ) from exc
-
-        return await self._complete_authentication(session_id)
-
-    async def logout(self, session_id: str) -> bool:
+    async def logout(
+        self,
+        session_id: str,
+    ) -> bool:
         session = session_manager.get(session_id)
 
         if session is None:
             return False
 
         try:
-            await telegram_manager.disconnect(session_id)
+            await pyrogram_manager.disconnect(
+                session_id
+            )
         finally:
-            session_manager.remove(session_id)
+            session_manager.remove(
+                session_id
+            )
 
         return True
 
@@ -190,18 +182,15 @@ class AuthService:
         if session is None:
             return None
 
-        client = telegram_manager.get_client(session_id)
-
-        if client is None:
+        if not session.metadata.get("authenticated"):
             return None
 
-        if not client.is_connected():
-            await client.connect()
-
-        if not await client.is_user_authorized():
+        try:
+            user = await pyrogram_auth_service.get_me(
+                session_id
+            )
+        except Exception:
             return None
-
-        user = await client.get_me()
 
         return self._serialize_user(user)
 
@@ -209,27 +198,26 @@ class AuthService:
         self,
         session_id: str,
     ) -> dict:
-        client = telegram_manager.get_client(session_id)
+        session = session_manager.get(session_id)
 
-        if client is None:
+        if session is None:
             raise SessionError(
-                "Telegram client is unavailable."
+                "Authentication session has expired."
             )
 
-        if not await client.is_user_authorized():
-            raise TelegramAuthenticationError(
-                "Telegram authorization was not completed."
+        user = await pyrogram_auth_service.get_me(
+            session_id
+        )
+
+        telegram_session = (
+            await pyrogram_auth_service.export_session(
+                session_id
             )
-
-        user = await client.get_me()
-
-        string_session = StringSession.save(
-            client.session
         )
 
         session_manager.update_telegram_session(
             session_id,
-            string_session,
+            telegram_session,
         )
 
         session_manager.update_metadata(
@@ -238,6 +226,7 @@ class AuthService:
                 "authenticated": True,
                 "auth_stage": "authenticated",
                 "user_id": user.id,
+                "auth_client": "pyrogram",
             },
         )
 
