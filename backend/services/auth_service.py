@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from telethon.errors import SessionPasswordNeededError
 from telethon.sessions import StringSession
 
-from backend.config import settings
 from backend.core.exceptions import (
     SessionError,
     TelegramAuthenticationError,
@@ -12,14 +12,7 @@ from backend.core.telegram import telegram_manager
 
 
 class AuthService:
-    """Handle Telegram authentication for Telefarm."""
-
-    async def create_phone_login(
-        self,
-        phone_number: str,
-    ) -> dict:
-        """Start Telegram phone authentication."""
-
+    async def create_phone_login(self, phone_number: str) -> dict:
         phone_number = phone_number.strip()
 
         if not phone_number:
@@ -44,12 +37,22 @@ class AuthService:
                 phone_number
             )
 
+            code_type = type(sent_code.type).__name__
+
+            next_type = (
+                type(sent_code.next_type).__name__
+                if sent_code.next_type is not None
+                else None
+            )
+
             session_manager.update_metadata(
                 app_session.session_id,
                 {
-                    "phone_code_hash": (
-                        sent_code.phone_code_hash
-                    ),
+                    "phone_code_hash": sent_code.phone_code_hash,
+                    "code_type": code_type,
+                    "next_type": next_type,
+                    "code_timeout": sent_code.timeout,
+                    "auth_stage": "code",
                 },
             )
 
@@ -58,16 +61,14 @@ class AuthService:
                 "session_id": app_session.session_id,
                 "requires_code": True,
                 "requires_password": False,
-                "message": (
-                    "Verification code sent successfully."
-                ),
+                "code_type": code_type,
+                "next_type": next_type,
+                "code_timeout": sent_code.timeout,
+                "message": "Verification code request accepted.",
             }
 
         except Exception as exc:
-            session_manager.remove(
-                app_session.session_id
-            )
-
+            session_manager.remove(app_session.session_id)
             await telegram_manager.disconnect(
                 app_session.session_id
             )
@@ -81,8 +82,6 @@ class AuthService:
         session_id: str,
         code: str,
     ) -> dict:
-        """Verify the Telegram login code."""
-
         session = session_manager.get(session_id)
 
         if session is None:
@@ -90,22 +89,15 @@ class AuthService:
                 "Authentication session has expired."
             )
 
-        phone_number = session.metadata.get(
-            "phone_number"
-        )
-
-        phone_code_hash = session.metadata.get(
-            "phone_code_hash"
-        )
+        phone_number = session.metadata.get("phone_number")
+        phone_code_hash = session.metadata.get("phone_code_hash")
 
         if not phone_number or not phone_code_hash:
             raise TelegramAuthenticationError(
                 "Authentication information is incomplete."
             )
 
-        client = telegram_manager.get_client(
-            session_id
-        )
+        client = telegram_manager.get_client(session_id)
 
         if client is None:
             raise SessionError(
@@ -119,45 +111,34 @@ class AuthService:
                 phone_code_hash=phone_code_hash,
             )
 
+        except SessionPasswordNeededError:
+            session_manager.update_metadata(
+                session_id,
+                {
+                    "auth_stage": "password",
+                },
+            )
+
+            return {
+                "success": True,
+                "session_id": session_id,
+                "requires_code": False,
+                "requires_password": True,
+                "message": "Two-step verification is required.",
+            }
+
         except Exception as exc:
-            from telethon.errors import SessionPasswordNeededError
-
-            if isinstance(
-                exc,
-                SessionPasswordNeededError,
-            ):
-                session_manager.update_metadata(
-                    session_id,
-                    {
-                        "auth_stage": "password",
-                    },
-                )
-
-                return {
-                    "success": True,
-                    "session_id": session_id,
-                    "requires_code": False,
-                    "requires_password": True,
-                    "message": (
-                        "Two-step verification is required."
-                    ),
-                }
-
             raise TelegramAuthenticationError(
                 "Invalid or expired verification code."
             ) from exc
 
-        return await self._complete_authentication(
-            session_id
-        )
+        return await self._complete_authentication(session_id)
 
     async def verify_password(
         self,
         session_id: str,
         password: str,
     ) -> dict:
-        """Verify Telegram two-step verification."""
-
         session = session_manager.get(session_id)
 
         if session is None:
@@ -165,143 +146,24 @@ class AuthService:
                 "Authentication session has expired."
             )
 
-        client = telegram_manager.get_client(
-            session_id
-        )
+        if not password:
+            raise TelegramAuthenticationError(
+                "Password cannot be empty."
+            )
+
+        client = telegram_manager.get_client(session_id)
 
         if client is None:
             raise SessionError(
                 "Telegram authentication client is unavailable."
             )
 
-        if not password:
-            raise TelegramAuthenticationError(
-                "Password cannot be empty."
-            )
-
         try:
-            await client.sign_in(
-                password=password
-            )
+            await client.sign_in(password=password)
 
         except Exception as exc:
             raise TelegramAuthenticationError(
                 "Invalid two-step verification password."
             ) from exc
 
-        return await self._complete_authentication(
-            session_id
-        )
-
-    async def logout(
-        self,
-        session_id: str,
-    ) -> bool:
-        """Disconnect Telegram and remove the application session."""
-
-        session = session_manager.get(session_id)
-
-        if session is None:
-            return False
-
-        try:
-            await telegram_manager.disconnect(
-                session_id
-            )
-        finally:
-            session_manager.remove(
-                session_id
-            )
-
-        return True
-
-    async def get_current_user(
-        self,
-        session_id: str,
-    ) -> dict | None:
-        """Return the authenticated Telegram user."""
-
-        session = session_manager.get(session_id)
-
-        if session is None:
-            return None
-
-        client = telegram_manager.get_client(
-            session_id
-        )
-
-        if client is None:
-            return None
-
-        if not client.is_connected():
-            await client.connect()
-
-        if not await client.is_user_authorized():
-            return None
-
-        user = await client.get_me()
-
-        return self._serialize_user(user)
-
-    async def _complete_authentication(
-        self,
-        session_id: str,
-    ) -> dict:
-        """Finalize an authenticated Telegram session."""
-
-        client = telegram_manager.get_client(
-            session_id
-        )
-
-        if client is None:
-            raise SessionError(
-                "Telegram client is unavailable."
-            )
-
-        if not await client.is_user_authorized():
-            raise TelegramAuthenticationError(
-                "Telegram authorization was not completed."
-            )
-
-        user = await client.get_me()
-
-        string_session = StringSession.save(
-            client.session
-        )
-
-        session_manager.update_telegram_session(
-            session_id,
-            string_session,
-        )
-
-        session_manager.update_metadata(
-            session_id,
-            {
-                "authenticated": True,
-                "auth_stage": "authenticated",
-                "user_id": user.id,
-            },
-        )
-
-        return {
-            "success": True,
-            "session_id": session_id,
-            "requires_code": False,
-            "requires_password": False,
-            "message": "Authentication successful.",
-        }
-
-    @staticmethod
-    def _serialize_user(user) -> dict:
-        """Serialize basic Telegram user information."""
-
-        return {
-            "id": user.id,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "username": user.username,
-            "phone": user.phone,
-        }
-
-
-auth_service = AuthService()
+        return await self._complete
