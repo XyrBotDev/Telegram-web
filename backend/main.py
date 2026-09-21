@@ -13,6 +13,7 @@ from backend.api import (
     search,
     settings as settings_api,
     users,
+    websocket,
 )
 from backend.config import settings
 from backend.core.telegram import telegram_manager
@@ -21,6 +22,7 @@ from backend.core.telegram import telegram_manager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown."""
+
     yield
 
     await telegram_manager.disconnect_all()
@@ -50,11 +52,13 @@ app.include_router(media.router)
 app.include_router(users.router)
 app.include_router(search.router)
 app.include_router(settings_api.router)
+app.include_router(websocket.router)
 
 
 @app.get("/")
 async def root() -> dict:
     """Return basic application information."""
+
     return {
         "name": "Telefarm",
         "status": "online",
@@ -64,7 +68,8 @@ async def root() -> dict:
 
 @app.get("/health")
 async def health() -> dict:
-    """Return the application health status."""
+    """Return application health status."""
+
     return {
         "status": "healthy",
         "service": "Telefarm",
