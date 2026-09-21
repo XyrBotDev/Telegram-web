@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: telefarm
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13
+
+      - key: TELEGRAM_API_ID
+        sync: false
+
+      - key: TELEGRAM_API_HASH
+        sync: false
+
+      - key: SESSION_TIMEOUT
+        value: "3600"
+
+      - key: MAX_UPLOAD_SIZE
+        value: "52428800"
+
+      - key: DEBUG
+        value: "false"
+
+      - key: ALLOWED_ORIGINS
+        value: "*"
