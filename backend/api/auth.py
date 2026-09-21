@@ -27,6 +27,7 @@ async def phone_login(
     request: PhoneLoginRequest,
 ) -> AuthResponse:
     """Start phone-based Telegram authentication."""
+
     try:
         result = await auth_service.create_phone_login(
             request.phone_number
@@ -48,7 +49,8 @@ async def phone_login(
 async def verify_code(
     request: CodeVerificationRequest,
 ) -> AuthResponse:
-    """Verify a Telegram authentication code."""
+    """Verify the Telegram authentication code."""
+
     try:
         result = await auth_service.verify_code(
             request.session_id,
@@ -72,6 +74,7 @@ async def verify_password(
     request: TwoFactorRequest,
 ) -> AuthResponse:
     """Verify Telegram two-step verification."""
+
     try:
         result = await auth_service.verify_password(
             request.session_id,
@@ -87,13 +90,12 @@ async def verify_password(
         ) from exc
 
 
-@router.post(
-    "/logout",
-)
+@router.post("/logout")
 async def logout(
     request: LogoutRequest,
 ) -> dict:
-    """Log out and remove the temporary Telefarm session."""
+    """Log out from Telefarm."""
+
     success = await auth_service.logout(
         request.session_id
     )
@@ -117,7 +119,8 @@ async def logout(
 async def current_user(
     session_id: str,
 ) -> CurrentUserResponse:
-    """Return the authenticated Telegram user."""
+    """Return the currently authenticated user."""
+
     user = await auth_service.get_current_user(
         session_id
     )
@@ -131,4 +134,4 @@ async def current_user(
     return CurrentUserResponse(
         authenticated=True,
         user=user,
-  )
+    )
