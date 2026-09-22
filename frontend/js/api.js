@@ -1,32 +1,37 @@
 const API_BASE = "";
 
-function getSessionId() {
-    const params =
-        new URLSearchParams(
-            window.location.search
-        );
 
-    return params.get("session_id");
+function getSessionId() {
+    return sessionStorage.getItem(
+        "telefarm_session_id"
+    );
 }
 
-async function request(path, options = {}) {
-    const response =
-        await fetch(
-            `${API_BASE}${path}`,
-            {
-                ...options,
-                headers: {
-                    "Content-Type":
-                        "application/json",
-                    ...(options.headers || {})
-                }
+
+async function request(
+    path,
+    options = {}
+) {
+    const response = await fetch(
+        `${API_BASE}${path}`,
+        {
+            ...options,
+
+            headers: {
+                "Content-Type":
+                    "application/json",
+
+                ...(options.headers || {})
             }
-        );
+        }
+    );
+
 
     const data =
         await response
             .json()
             .catch(() => ({}));
+
 
     if (!response.ok) {
         throw new Error(
@@ -35,8 +40,10 @@ async function request(path, options = {}) {
         );
     }
 
+
     return data;
 }
+
 
 export async function getChats(
     limit = 50
@@ -44,16 +51,23 @@ export async function getChats(
     const sessionId =
         getSessionId();
 
+
     if (!sessionId) {
+        window.location.replace(
+            "/login.html"
+        );
+
         throw new Error(
-            "No Telefarm session ID was provided."
+            "Authentication required."
         );
     }
+
 
     return request(
         `/api/chats?session_id=${encodeURIComponent(sessionId)}&limit=${limit}`
     );
 }
+
 
 export async function getChat(
     chatId
@@ -61,16 +75,23 @@ export async function getChat(
     const sessionId =
         getSessionId();
 
+
     if (!sessionId) {
+        window.location.replace(
+            "/login.html"
+        );
+
         throw new Error(
-            "No Telefarm session ID was provided."
+            "Authentication required."
         );
     }
+
 
     return request(
         `/api/chats/${encodeURIComponent(chatId)}?session_id=${encodeURIComponent(sessionId)}`
     );
 }
+
 
 export async function getMessages(
     chatId,
@@ -79,16 +100,23 @@ export async function getMessages(
     const sessionId =
         getSessionId();
 
+
     if (!sessionId) {
+        window.location.replace(
+            "/login.html"
+        );
+
         throw new Error(
-            "No Telefarm session ID was provided."
+            "Authentication required."
         );
     }
+
 
     return request(
         `/api/messages/${encodeURIComponent(chatId)}?session_id=${encodeURIComponent(sessionId)}&limit=${limit}`
     );
 }
+
 
 export async function searchMessages(
     query,
@@ -98,29 +126,39 @@ export async function searchMessages(
     const sessionId =
         getSessionId();
 
+
     if (!sessionId) {
+        window.location.replace(
+            "/login.html"
+        );
+
         throw new Error(
-            "No Telefarm session ID was provided."
+            "Authentication required."
         );
     }
 
+
     const params =
         new URLSearchParams();
+
 
     params.set(
         "session_id",
         sessionId
     );
 
+
     params.set(
         "query",
         query
     );
 
+
     params.set(
         "limit",
         String(limit)
     );
+
 
     if (chatId !== null) {
         params.set(
@@ -129,7 +167,8 @@ export async function searchMessages(
         );
     }
 
+
     return request(
         `/api/search/messages?${params.toString()}`
     );
-}
+            }
