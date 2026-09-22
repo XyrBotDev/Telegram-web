@@ -1,0 +1,198 @@
+.chat-panel {
+    min-width: 0;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    flex: 1;
+}
+
+.chat-header {
+    height: var(--header-height);
+
+    display: flex;
+    align-items: center;
+
+    padding: 0 16px;
+
+    border-bottom: 1px solid var(--border);
+}
+
+.chat-header-info {
+    min-width: 0;
+    margin-left: 12px;
+}
+
+.chat-avatar {
+    width: 42px;
+    height: 42px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid var(--border);
+    border-radius: 50%;
+
+    font-weight: 600;
+}
+
+.chat-title {
+    overflow: hidden;
+
+    font-weight: 600;
+
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.chat-status {
+    margin-top: 3px;
+
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.messages {
+    flex: 1;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 5px;
+
+    padding: 20px;
+
+    overflow-y: auto;
+}
+
+.message-row {
+    display: flex;
+}
+
+.message-row.outgoing {
+    justify-content: flex-end;
+}
+
+.message-bubble {
+    max-width: min(70%, 600px);
+
+    padding: 8px 11px;
+
+    border: 1px solid var(--border);
+    border-radius: 12px;
+
+    background: var(--message-incoming);
+
+    word-break: break-word;
+}
+
+.message-row.outgoing .message-bubble {
+    background: var(--message-outgoing);
+}
+
+.message-text {
+    white-space: pre-wrap;
+    line-height: 1.4;
+}
+
+.message-meta {
+    margin-top: 4px;
+
+    color: var(--text-secondary);
+    font-size: 10px;
+
+    text-align: right;
+}
+
+.message-composer {
+    min-height: 64px;
+
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 10px 14px;
+
+    border-top: 1px solid var(--border);
+}
+
+.message-composer input {
+    min-width: 0;
+    flex: 1;
+
+    height: 42px;
+
+    padding: 0 14px;
+
+    border: 1px solid var(--border);
+    border-radius: 21px;
+    outline: 0;
+
+    background: var(--surface);
+    color: var(--text);
+}
+
+.send-button {
+    width: 42px;
+    height: 42px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: var(--text);
+    color: var(--bg);
+
+    cursor: pointer;
+}
+
+.send-button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.send-button svg {
+    width: 19px;
+    height: 19px;
+
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.mobile-back {
+    display: none;
+}
+
+@media (max-width: 700px) {
+    .sidebar {
+        width: 100%;
+    }
+
+    .chat-panel {
+        display: none;
+    }
+
+    .app.chat-open .sidebar {
+        display: none;
+    }
+
+    .app.chat-open .chat-panel {
+        display: flex;
+    }
+
+    .mobile-back {
+        display: flex;
+    }
+
+    .message-bubble {
+        max-width: 85%;
+    }
+}
