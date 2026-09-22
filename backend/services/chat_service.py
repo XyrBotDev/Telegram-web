@@ -37,18 +37,27 @@ class ChatService:
 
         return client
 
+    @staticmethod
+    def _value(obj: Any, key: str, default=None):
+        """Read a value from either an object or a dictionary."""
+        if isinstance(obj, dict):
+            return obj.get(key, default)
+
+        return getattr(obj, key, default)
+
     async def list_chats(
         self,
         session_id: str,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         """Return chats from the Telegram dialog list."""
+
         client = await self._get_client(session_id)
 
         chats = []
 
         async for dialog in client.get_dialogs(limit=limit):
-            chat = dialog.chat
+            chat = self._value(dialog, "chat")
 
             if chat is None:
                 continue
@@ -56,7 +65,7 @@ class ChatService:
             chats.append(
                 self._serialize_chat(
                     chat,
-                    dialog=dialog,
+                    dialog,
                 )
             )
 
@@ -71,32 +80,50 @@ class ChatService:
 
         client = await self._get_client(session_id)
 
-        target_id = int(chat_id)
+        try:
+            target_id = int(chat_id)
+        except (TypeError, ValueError) as exc:
+            raise SessionError(
+                "Invalid chat ID."
+            ) from exc
 
         async for dialog in client.get_dialogs():
-            chat = dialog.chat
+            chat = self._value(dialog, "chat")
 
             if chat is None:
                 continue
 
-            if chat.id == target_id:
+            current_id = self._value(
+                chat,
+                "id",
+            )
+
+            if current_id == target_id:
                 return self._serialize_chat(
                     chat,
-                    dialog=dialog,
+                    dialog,
                 )
 
         raise SessionError(
             "Chat was not found in the current dialog list."
         )
 
-    @staticmethod
     def _serialize_chat(
+        self,
         chat,
         dialog=None,
     ) -> dict[str, Any]:
         """Convert a Pyrogram chat into API-safe data."""
 
-        chat_type = getattr(chat, "type", None)
+        chat_id = self._value(
+            chat,
+            "id",
+        )
+
+        chat_type = self._value(
+            chat,
+            "type",
+        )
 
         if chat_type is not None:
             chat_type = str(chat_type)
@@ -106,68 +133,67 @@ class ChatService:
 
             chat_type = chat_type.upper()
 
-        first_name = getattr(
+        first_name = self._value(
             chat,
             "first_name",
-            None,
         )
 
-        last_name = getattr(
+        last_name = self._value(
             chat,
             "last_name",
-            None,
         )
 
         full_name = " ".join(
             part
-            for part in (first_name, last_name)
+            for part in (
+                first_name,
+                last_name,
+            )
             if part
         ).strip()
 
         title = (
-            getattr(chat, "title", None)
+            self._value(
+                chat,
+                "title",
+            )
             or full_name
             or ""
         )
 
+        unread_count = self._value(
+            dialog,
+            "unread_messages",
+            0,
+        )
+
+        pinned = bool(
+            self._value(
+                dialog,
+                "is_pinned",
+                False,
+            )
+        )
+
+        folder_id = self._value(
+            dialog,
+            "folder_id",
+        )
+
+        archived = folder_id == 1
+
         return {
-            "id": chat.id,
+            "id": chat_id,
             "title": title,
-            "username": getattr(
+            "username": self._value(
                 chat,
                 "username",
-                None,
             ),
             "chat_type": chat_type,
             "photo": None,
-            "unread_count": (
-                getattr(
-                    dialog,
-                    "unread_messages",
-                    0,
-                )
-                if dialog is not None
-                else 0
-            ),
-            "pinned": bool(
-                getattr(
-                    dialog,
-                    "is_pinned",
-                    False,
-                )
-                if dialog is not None
-                else False
-            ),
-            "archived": bool(
-                getattr(
-                    dialog,
-                    "folder_id",
-                    None,
-                )
-                == 1
-                if dialog is not None
-                else False
-            ),
+            "unread_count": unread_count,
+            "pinned": pinned,
+            "archived": archived,
             "last_message": None,
         }
 
