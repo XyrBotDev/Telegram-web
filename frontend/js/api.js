@@ -1,12 +1,26 @@
 const API_BASE = "";
 
-
 function getSessionId() {
     return sessionStorage.getItem(
         "telefarm_session_id"
     );
 }
 
+function requireSession() {
+    const sessionId = getSessionId();
+
+    if (!sessionId) {
+        window.location.replace(
+            "/login.html"
+        );
+
+        throw new Error(
+            "Authentication required."
+        );
+    }
+
+    return sessionId;
+}
 
 async function request(
     path,
@@ -26,12 +40,10 @@ async function request(
         }
     );
 
-
     const data =
         await response
             .json()
             .catch(() => ({}));
-
 
     if (!response.ok) {
         throw new Error(
@@ -40,83 +52,52 @@ async function request(
         );
     }
 
-
     return data;
 }
-
 
 export async function getChats(
     limit = 50
 ) {
     const sessionId =
-        getSessionId();
-
-
-    if (!sessionId) {
-        window.location.replace(
-            "/login.html"
-        );
-
-        throw new Error(
-            "Authentication required."
-        );
-    }
-
+        requireSession();
 
     return request(
-        `/api/chats?session_id=${encodeURIComponent(sessionId)}&limit=${limit}`
+        `/api/chats?session_id=${encodeURIComponent(
+            sessionId
+        )}&limit=${limit}`
     );
 }
-
 
 export async function getChat(
     chatId
 ) {
     const sessionId =
-        getSessionId();
-
-
-    if (!sessionId) {
-        window.location.replace(
-            "/login.html"
-        );
-
-        throw new Error(
-            "Authentication required."
-        );
-    }
-
+        requireSession();
 
     return request(
-        `/api/chats/${encodeURIComponent(chatId)}?session_id=${encodeURIComponent(sessionId)}`
+        `/api/chats/${encodeURIComponent(
+            chatId
+        )}?session_id=${encodeURIComponent(
+            sessionId
+        )}`
     );
 }
-
 
 export async function getMessages(
     chatId,
     limit = 50
 ) {
     const sessionId =
-        getSessionId();
-
-
-    if (!sessionId) {
-        window.location.replace(
-            "/login.html"
-        );
-
-        throw new Error(
-            "Authentication required."
-        );
-    }
-
+        requireSession();
 
     return request(
-        `/api/messages/${encodeURIComponent(chatId)}?session_id=${encodeURIComponent(sessionId)}&limit=${limit}`
+        `/api/messages?session_id=${encodeURIComponent(
+            sessionId
+        )}&chat_id=${encodeURIComponent(
+            chatId
+        )}&limit=${limit}`
     );
 }
-
 
 export async function searchMessages(
     query,
@@ -124,41 +105,25 @@ export async function searchMessages(
     limit = 50
 ) {
     const sessionId =
-        getSessionId();
-
-
-    if (!sessionId) {
-        window.location.replace(
-            "/login.html"
-        );
-
-        throw new Error(
-            "Authentication required."
-        );
-    }
-
+        requireSession();
 
     const params =
         new URLSearchParams();
-
 
     params.set(
         "session_id",
         sessionId
     );
 
-
     params.set(
         "query",
         query
     );
 
-
     params.set(
         "limit",
         String(limit)
     );
-
 
     if (chatId !== null) {
         params.set(
@@ -167,8 +132,24 @@ export async function searchMessages(
         );
     }
 
-
     return request(
         `/api/search/messages?${params.toString()}`
     );
-            }
+}
+
+export function getChatPhotoUrl(
+    chatId
+) {
+    const sessionId =
+        getSessionId();
+
+    if (!sessionId) {
+        return "";
+    }
+
+    return `/api/chats/${encodeURIComponent(
+        chatId
+    )}/photo?session_id=${encodeURIComponent(
+        sessionId
+    )}`;
+}
