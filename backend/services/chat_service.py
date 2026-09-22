@@ -2,17 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.core.exceptions import (
-    SessionError,
-)
+from backend.core.exceptions import SessionError
+from backend.core.pyrogram_client import pyrogram_manager
 from backend.core.sessions import session_manager
-from backend.core.telegram import telegram_manager
 
 
 class ChatService:
-    """Handle chat-related Telegram operations."""
+    """Handle chat-related Telegram operations using Pyrogram."""
 
-    def _get_client(self, session_id: str):
+    async def _get_client(self, session_id: str):
         session = session_manager.get(session_id)
 
         if session is None:
@@ -20,14 +18,30 @@ class ChatService:
                 "Telefarm session has expired."
             )
 
-        client = telegram_manager.get_client(
+        if not session.metadata.get("authenticated"):
+            raise SessionError(
+                "Telefarm session is not authenticated."
+            )
+
+        client = pyrogram_manager.get_client(
             session_id
         )
 
         if client is None:
-            raise SessionError(
-                "Telegram client is not available."
+            telegram_session = session.telegram_session
+
+            if not telegram_session:
+                raise SessionError(
+                    "Telegram session is not available."
+                )
+
+            client = await pyrogram_manager.create_client(
+                session_key=session_id,
+                session_string=telegram_session,
             )
+
+        if not client.is_connected:
+            await client.connect()
 
         return client
 
@@ -37,32 +51,63 @@ class ChatService:
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         """Return the authenticated user's dialogs."""
-        client = self._get_client(session_id)
 
-        dialogs = []
+        client = await self._get_client(
+            session_id
+        )
 
-        async for dialog in client.iter_dialogs(
+        chats: list[dict[str, Any]] = []
+
+        async for dialog in client.get_dialogs(
             limit=limit
         ):
-            entity = dialog.entity
+            chat = dialog.chat
 
-            dialogs.append(
+            if chat is None:
+                continue
+
+            chat_type = getattr(
+                chat,
+                "type",
+                None,
+            )
+
+            if chat_type is not None:
+                chat_type = str(chat_type)
+                if "." in chat_type:
+                    chat_type = chat_type.split(".")[-1]
+
+            chats.append(
                 {
-                    "id": dialog.id,
-                    "title": dialog.title,
+                    "id": chat.id,
+                    "title": (
+                        getattr(
+                            chat,
+                            "title",
+                            None,
+                        )
+                        or getattr(
+                            chat,
+                            "first_name",
+                            None,
+                        )
+                        or ""
+                    ),
                     "username": getattr(
-                        entity,
+                        chat,
                         "username",
                         None,
                     ),
-                    "chat_type": type(
-                        entity
-                    ).__name__,
-                    "unread_count": dialog.unread_count,
+                    "chat_type": chat_type,
+                    "unread_count": getattr(
+                        dialog,
+                        "unread_messages",
+                        0,
+                    ),
                     "pinned": bool(
                         getattr(
                             dialog,
-                            "pinned",
+                            "is_pinned",
                             False,
                         )
                     ),
@@ -70,23 +115,57 @@ class ChatService:
                         getattr(
                             dialog,
                             "folder_id",
-                            None
+                            None,
                         ) == 1
                     ),
                 }
             )
 
-        return dialogs
+        return chats
 
     async def get_chat(
         self,
         session_id: str,
         chat_id: int | str,
-    ) -> Any:
+    ) -> dict[str, Any]:
         """Resolve and return a Telegram chat."""
-        client = self._get_client(session_id)
 
-        return await client.get_entity(chat_id)
+        client = await self._get_client(
+            session_id
+        )
+
+        chat = await client.get_chat(
+            chat_id
+        )
+
+        return {
+            "id": chat.id,
+            "title": (
+                getattr(
+                    chat,
+                    "title",
+                    None,
+                )
+                or getattr(
+                    chat,
+                    "first_name",
+                    None,
+                )
+                or ""
+            ),
+            "username": getattr(
+                chat,
+                "username",
+                None,
+            ),
+            "chat_type": str(
+                getattr(
+                    chat,
+                    "type",
+                    "",
+                )
+            ).split(".")[-1],
+        }
 
 
 chat_service = ChatService()
