@@ -1,18 +1,22 @@
 import {
     getChats,
-    searchMessages
+    searchMessages,
+    getChatPhotoUrl
 } from "./api.js";
 
 let chats = [];
 let selectedChatId = null;
 let searchTimer = null;
-let searchMode = false;
 
 const chatListElement =
-    document.getElementById("chat-list");
+    document.getElementById(
+        "chat-list"
+    );
 
 const searchElement =
-    document.getElementById("chat-search");
+    document.getElementById(
+        "chat-search"
+    );
 
 function escapeHtml(value) {
     return String(value ?? "")
@@ -24,15 +28,79 @@ function escapeHtml(value) {
 }
 
 function getInitial(title) {
-    return String(title || "T")
-        .trim()
-        .charAt(0)
-        .toUpperCase() || "T";
+    return (
+        String(title || "T")
+            .trim()
+            .charAt(0)
+            .toUpperCase() || "T"
+    );
+}
+
+function createAvatar(
+    chat,
+    className = "chat-item-avatar"
+) {
+    const initial =
+        getInitial(chat.title);
+
+    if (chat.photo) {
+        const image =
+            document.createElement(
+                "img"
+            );
+
+        image.className =
+            className;
+
+        image.src =
+            getChatPhotoUrl(chat.id);
+
+        image.alt =
+            chat.title || "Chat";
+
+        image.loading =
+            "lazy";
+
+        image.onerror =
+            () => {
+                image.replaceWith(
+                    createTextAvatar(
+                        chat,
+                        className
+                    )
+                );
+            };
+
+        return image;
+    }
+
+    return createTextAvatar(
+        chat,
+        className
+    );
+}
+
+function createTextAvatar(
+    chat,
+    className
+) {
+    const element =
+        document.createElement(
+            "div"
+        );
+
+    element.className =
+        className;
+
+    element.textContent =
+        getInitial(chat.title);
+
+    return element;
 }
 
 function renderChatList(items) {
-    searchMode = false;
-    chatListElement.innerHTML = "";
+    chatListElement.innerHTML =
+        "";
 
     if (!items.length) {
         chatListElement.innerHTML = `
@@ -40,66 +108,117 @@ function renderChatList(items) {
                 No chats found.
             </div>
         `;
+
         return;
     }
 
     for (const chat of items) {
         const element =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
-        element.className = "chat-item";
+        element.className =
+            "chat-item";
 
         if (
             String(chat.id) ===
             String(selectedChatId)
         ) {
-            element.classList.add("active");
+            element.classList.add(
+                "active"
+            );
         }
 
-        element.innerHTML = `
-            <div class="chat-item-avatar">
+        const avatar =
+            createAvatar(chat);
+
+        const content =
+            document.createElement(
+                "div"
+            );
+
+        content.className =
+            "chat-item-content";
+
+        const top =
+            document.createElement(
+                "div"
+            );
+
+        top.className =
+            "chat-item-top";
+
+        top.innerHTML = `
+            <div class="chat-item-title">
                 ${escapeHtml(
-                    getInitial(chat.title)
+                    chat.title ||
+                    "Unknown"
                 )}
             </div>
+        `;
 
-            <div class="chat-item-content">
-                <div class="chat-item-top">
-                    <div class="chat-item-title">
-                        ${escapeHtml(
-                            chat.title || "Unknown"
-                        )}
-                    </div>
-                </div>
+        const bottom =
+            document.createElement(
+                "div"
+            );
 
-                <div class="chat-item-bottom">
-                    <div class="chat-item-preview">
-                        ${escapeHtml(
-                            chat.chat_type || ""
-                        )}
-                    </div>
+        bottom.className =
+            "chat-item-bottom";
 
-                    ${
-                        Number(
-                            chat.unread_count || 0
-                        ) > 0
-                            ? `
-                                <div class="unread-badge">
-                                    ${Number(
-                                        chat.unread_count
-                                    )}
-                                </div>
-                            `
-                            : ""
-                    }
-                </div>
+        bottom.innerHTML = `
+            <div class="chat-item-preview">
+                ${escapeHtml(
+                    chat.chat_type ||
+                    ""
+                )}
             </div>
         `;
+
+        if (
+            Number(
+                chat.unread_count || 0
+            ) > 0
+        ) {
+            const badge =
+                document.createElement(
+                    "div"
+                );
+
+            badge.className =
+                "unread-badge";
+
+            badge.textContent =
+                String(
+                    chat.unread_count
+                );
+
+            bottom.appendChild(
+                badge
+            );
+        }
+
+        content.appendChild(
+            top
+        );
+
+        content.appendChild(
+            bottom
+        );
+
+        element.appendChild(
+            avatar
+        );
+
+        element.appendChild(
+            content
+        );
 
         element.addEventListener(
             "click",
             () => {
-                selectedChatId = chat.id;
+                selectedChatId =
+                    chat.id;
 
                 renderChatList(
                     getFilteredChats()
@@ -116,7 +235,9 @@ function renderChatList(items) {
             }
         );
 
-        chatListElement.appendChild(element);
+        chatListElement.appendChild(
+            element
+        );
     }
 }
 
@@ -130,75 +251,19 @@ function getFilteredChats() {
         return chats;
     }
 
-    return chats.filter(chat =>
-        String(chat.title || "")
-            .toLowerCase()
-            .includes(query) ||
-        String(chat.username || "")
-            .toLowerCase()
-            .includes(query)
+    return chats.filter(
+        chat =>
+            String(
+                chat.title || ""
+            )
+                .toLowerCase()
+                .includes(query) ||
+            String(
+                chat.username || ""
+            )
+                .toLowerCase()
+                .includes(query)
     );
-}
-
-function renderSearchResults(results) {
-    searchMode = true;
-    chatListElement.innerHTML = "";
-
-    if (!results.length) {
-        chatListElement.innerHTML = `
-            <div class="search-empty">
-                No messages found.
-            </div>
-        `;
-        return;
-    }
-
-    for (const result of results) {
-        const element =
-            document.createElement("div");
-
-        element.className =
-            "search-result-item";
-
-        const preview =
-            result.text || "Media message";
-
-        element.innerHTML = `
-            <div class="search-result-icon">
-                <svg viewBox="0 0 24 24">
-                    <path d="M20 11a8 8 0 1 1-2.34-5.66"/>
-                    <path d="M20 4v7h-7"/>
-                </svg>
-            </div>
-
-            <div class="search-result-content">
-
-                <div class="search-result-title">
-                    Chat ${escapeHtml(
-                        result.chat_id ?? ""
-                    )}
-                </div>
-
-                <div class="search-result-text">
-                    ${escapeHtml(preview)}
-                </div>
-
-                <div class="search-result-date">
-                    ${formatDate(result.date)}
-                </div>
-
-            </div>
-        `;
-
-        element.addEventListener(
-            "click",
-            () => {
-                openSearchResult(result);
-            }
-        );
-
-        chatListElement.appendChild(element);
-    }
 }
 
 function formatDate(value) {
@@ -206,9 +271,14 @@ function formatDate(value) {
         return "";
     }
 
-    const date = new Date(value);
+    const date =
+        new Date(value);
 
-    if (Number.isNaN(date.getTime())) {
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
         return "";
     }
 
@@ -223,40 +293,107 @@ function formatDate(value) {
     );
 }
 
-function openSearchResult(result) {
-    const chat =
-        chats.find(
-            item =>
-                String(item.id) ===
-                String(result.chat_id)
-        );
+function renderSearchResults(
+    results
+) {
+    chatListElement.innerHTML =
+        "";
 
-    if (chat) {
-        selectedChatId = chat.id;
-
-        window.dispatchEvent(
-            new CustomEvent(
-                "telefarm:chat-selected",
-                {
-                    detail: chat
-                }
-            )
-        );
+    if (!results.length) {
+        chatListElement.innerHTML = `
+            <div class="search-empty">
+                No messages found.
+            </div>
+        `;
 
         return;
     }
 
-    window.dispatchEvent(
-        new CustomEvent(
-            "telefarm:search-result-selected",
-            {
-                detail: result
+    for (const result of results) {
+        const element =
+            document.createElement(
+                "div"
+            );
+
+        element.className =
+            "search-result-item";
+
+        const preview =
+            result.text ||
+            "Media message";
+
+        element.innerHTML = `
+            <div class="search-result-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M20 11a8 8 0 1 1-2.34-5.66"/>
+                    <path d="M20 4v7h-7"/>
+                </svg>
+            </div>
+
+            <div class="search-result-content">
+
+                <div class="search-result-title">
+                    Chat ${escapeHtml(
+                        result.chat_id ??
+                        ""
+                    )}
+                </div>
+
+                <div class="search-result-text">
+                    ${escapeHtml(
+                        preview
+                    )}
+                </div>
+
+                <div class="search-result-date">
+                    ${formatDate(
+                        result.date
+                    )}
+                </div>
+
+            </div>
+        `;
+
+        element.addEventListener(
+            "click",
+            () => {
+                const chat =
+                    chats.find(
+                        item =>
+                            String(
+                                item.id
+                            ) ===
+                            String(
+                                result.chat_id
+                            )
+                    );
+
+                if (chat) {
+                    selectedChatId =
+                        chat.id;
+
+                    window.dispatchEvent(
+                        new CustomEvent(
+                            "telefarm:chat-selected",
+                            {
+                                detail:
+                                    chat
+                            }
+                        )
+                    );
+                }
             }
-        )
-    );
+        );
+
+        chatListElement.appendChild(
+            element
+        );
+    }
 }
 
-async function performSearch(query) {
+async function performSearch(
+    query
+) {
     const trimmed =
         query.trim();
 
@@ -285,7 +422,9 @@ async function performSearch(query) {
     } catch (error) {
         chatListElement.innerHTML = `
             <div class="search-empty">
-                ${escapeHtml(error.message)}
+                ${escapeHtml(
+                    error.message
+                )}
             </div>
         `;
 
@@ -296,7 +435,9 @@ async function performSearch(query) {
 searchElement.addEventListener(
     "input",
     () => {
-        clearTimeout(searchTimer);
+        clearTimeout(
+            searchTimer
+        );
 
         const query =
             searchElement.value;
@@ -306,10 +447,14 @@ searchElement.addEventListener(
             return;
         }
 
-        searchTimer = setTimeout(
-            () => performSearch(query),
-            350
-        );
+        searchTimer =
+            setTimeout(
+                () =>
+                    performSearch(
+                        query
+                    ),
+                350
+            );
     }
 );
 
@@ -327,14 +472,18 @@ export async function loadChats() {
         chats =
             response.chats || [];
 
-        renderChatList(chats);
+        renderChatList(
+            chats
+        );
     } catch (error) {
         chatListElement.innerHTML = `
             <div class="search-empty">
-                ${escapeHtml(error.message)}
+                ${escapeHtml(
+                    error.message
+                )}
             </div>
         `;
 
         console.error(error);
     }
-}
+            }
