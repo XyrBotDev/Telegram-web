@@ -24,6 +24,7 @@ async def list_chats(
     limit: int = 50,
 ) -> ChatListResponse:
     """Return the user's Telegram dialogs."""
+
     if limit < 1 or limit > 100:
         raise HTTPException(
             status_code=400,
@@ -58,7 +59,8 @@ async def get_chat(
     chat_id: str,
     session_id: str,
 ) -> dict:
-    """Return a resolved Telegram chat."""
+    """Return a Telegram chat."""
+
     try:
         chat = await chat_service.get_chat(
             session_id=session_id,
@@ -67,19 +69,7 @@ async def get_chat(
 
         return {
             "success": True,
-            "chat": {
-                "id": chat.id,
-                "title": getattr(
-                    chat,
-                    "title",
-                    None,
-                ),
-                "username": getattr(
-                    chat,
-                    "username",
-                    None,
-                ),
-            },
+            "chat": chat,
         }
 
     except Exception as exc:
