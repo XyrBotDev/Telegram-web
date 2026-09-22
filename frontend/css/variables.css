@@ -1,0 +1,32 @@
+:root {
+    --bg: #ffffff;
+    --surface: #f5f5f5;
+    --surface-hover: #eeeeee;
+    --border: #dddddd;
+
+    --text: #111111;
+    --text-secondary: #707070;
+
+    --message-incoming: #f0f0f0;
+    --message-outgoing: #dcdcdc;
+
+    --accent: #111111;
+
+    --sidebar-width: 360px;
+    --header-height: 64px;
+}
+
+[data-theme="dark"] {
+    --bg: #111111;
+    --surface: #191919;
+    --surface-hover: #242424;
+    --border: #303030;
+
+    --text: #ffffff;
+    --text-secondary: #a0a0a0;
+
+    --message-incoming: #202020;
+    --message-outgoing: #303030;
+
+    --accent: #ffffff;
+}
