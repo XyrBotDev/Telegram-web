@@ -1,0 +1,180 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    min-height: 100%;
+    margin: 0;
+}
+
+body {
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+    background: var(--bg);
+    color: var(--text);
+}
+
+.login-page {
+    width: 100%;
+    min-height: 100vh;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 24px;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 420px;
+
+    padding: 34px;
+
+    border: 1px solid var(--border);
+    border-radius: 18px;
+
+    background: var(--bg);
+}
+
+.login-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.login-logo {
+    width: 68px;
+    height: 68px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 2px solid var(--text);
+    border-radius: 50%;
+
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.login-brand h1 {
+    margin: 16px 0 0;
+
+    font-size: 26px;
+}
+
+.login-subtitle {
+    margin: 8px 0 28px;
+
+    color: var(--text-secondary);
+
+    text-align: center;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+label {
+    color: var(--text);
+
+    font-size: 14px;
+    font-weight: 600;
+}
+
+input {
+    width: 100%;
+    height: 46px;
+
+    padding: 0 14px;
+
+    border: 1px solid var(--border);
+    border-radius: 9px;
+
+    outline: none;
+
+    background: var(--surface);
+    color: var(--text);
+
+    font-size: 15px;
+}
+
+input:focus {
+    border-color: var(--text);
+}
+
+button {
+    width: 100%;
+    height: 46px;
+
+    margin-top: 8px;
+
+    border-radius: 9px;
+
+    background: var(--text);
+    color: var(--bg);
+
+    font-size: 15px;
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.login-message {
+    margin-bottom: 18px;
+    padding: 11px 13px;
+
+    border: 1px solid var(--border);
+    border-radius: 8px;
+
+    color: var(--text);
+
+    font-size: 13px;
+}
+
+.login-message.error {
+    border-color: var(--text);
+}
+
+.login-message.success {
+    border-color: var(--text);
+}
+
+.login-loading {
+    margin-top: 18px;
+
+    color: var(--text-secondary);
+
+    font-size: 13px;
+    text-align: center;
+}
+
+.hidden {
+    display: none !important;
+}
+
+@media (max-width: 480px) {
+    .login-page {
+        padding: 14px;
+    }
+
+    .login-card {
+        padding: 24px 20px;
+
+        border-radius: 14px;
+    }
+}
