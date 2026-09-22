@@ -14,22 +14,36 @@ class ChatService:
         session = session_manager.get(session_id)
 
         if session is None:
-            raise SessionError("Telefarm session has expired.")
+            raise SessionError(
+                "Telefarm session has expired."
+            )
 
-        if not session.metadata.get("authenticated"):
-            raise SessionError("Telefarm session is not authenticated.")
+        if not session.metadata.get(
+            "authenticated"
+        ):
+            raise SessionError(
+                "Telefarm session is not authenticated."
+            )
 
-        client = pyrogram_manager.get_client(session_id)
+        client = pyrogram_manager.get_client(
+            session_id
+        )
 
         if client is None:
-            telegram_session = session.telegram_session
+            telegram_session = (
+                session.telegram_session
+            )
 
             if not telegram_session:
-                raise SessionError("Telegram session is not available.")
+                raise SessionError(
+                    "Telegram session is not available."
+                )
 
-            client = await pyrogram_manager.create_client(
-                session_key=session_id,
-                session_string=telegram_session,
+            client = (
+                await pyrogram_manager.create_client(
+                    session_key=session_id,
+                    session_string=telegram_session,
+                )
             )
 
         if not client.is_connected:
@@ -38,12 +52,24 @@ class ChatService:
         return client
 
     @staticmethod
-    def _value(obj: Any, key: str, default=None):
-        """Read a value from either an object or a dictionary."""
-        if isinstance(obj, dict):
-            return obj.get(key, default)
+    def _value(
+        obj: Any,
+        key: str,
+        default=None,
+    ):
+        """Read a value from either an object or dictionary."""
 
-        return getattr(obj, key, default)
+        if isinstance(obj, dict):
+            return obj.get(
+                key,
+                default,
+            )
+
+        return getattr(
+            obj,
+            key,
+            default,
+        )
 
     async def list_chats(
         self,
@@ -52,12 +78,19 @@ class ChatService:
     ) -> list[dict[str, Any]]:
         """Return chats from the Telegram dialog list."""
 
-        client = await self._get_client(session_id)
+        client = await self._get_client(
+            session_id
+        )
 
         chats = []
 
-        async for dialog in client.get_dialogs(limit=limit):
-            chat = self._value(dialog, "chat")
+        async for dialog in client.get_dialogs(
+            limit=limit
+        ):
+            chat = self._value(
+                dialog,
+                "chat",
+            )
 
             if chat is None:
                 continue
@@ -78,17 +111,25 @@ class ChatService:
     ) -> dict[str, Any]:
         """Return a chat from the authenticated user's dialogs."""
 
-        client = await self._get_client(session_id)
+        client = await self._get_client(
+            session_id
+        )
 
         try:
             target_id = int(chat_id)
-        except (TypeError, ValueError) as exc:
+        except (
+            TypeError,
+            ValueError,
+        ) as exc:
             raise SessionError(
                 "Invalid chat ID."
             ) from exc
 
         async for dialog in client.get_dialogs():
-            chat = self._value(dialog, "chat")
+            chat = self._value(
+                dialog,
+                "chat",
+            )
 
             if chat is None:
                 continue
@@ -106,6 +147,58 @@ class ChatService:
 
         raise SessionError(
             "Chat was not found in the current dialog list."
+        )
+
+    async def get_chat_photo(
+        self,
+        session_id: str,
+        chat_id: int | str,
+    ):
+        """Download a Telegram chat profile photo into memory."""
+
+        client = await self._get_client(
+            session_id
+        )
+
+        try:
+            target_id = int(chat_id)
+        except (
+            TypeError,
+            ValueError,
+        ) as exc:
+            raise SessionError(
+                "Invalid chat ID."
+            ) from exc
+
+        chat = await client.get_chat(
+            target_id
+        )
+
+        photo = self._value(
+            chat,
+            "photo",
+        )
+
+        if photo is None:
+            return None
+
+        file_id = self._value(
+            photo,
+            "big_file_id",
+        )
+
+        if not file_id:
+            file_id = self._value(
+                photo,
+                "small_file_id",
+            )
+
+        if not file_id:
+            return None
+
+        return await client.download_media(
+            file_id,
+            in_memory=True,
         )
 
     def _serialize_chat(
@@ -126,12 +219,18 @@ class ChatService:
         )
 
         if chat_type is not None:
-            chat_type = str(chat_type)
+            chat_type = str(
+                chat_type
+            )
 
             if "." in chat_type:
-                chat_type = chat_type.split(".")[-1]
+                chat_type = (
+                    chat_type.split(".")[-1]
+                )
 
-            chat_type = chat_type.upper()
+            chat_type = (
+                chat_type.upper()
+            )
 
         first_name = self._value(
             chat,
@@ -180,7 +279,16 @@ class ChatService:
             "folder_id",
         )
 
-        archived = folder_id == 1
+        archived = (
+            folder_id == 1
+        )
+
+        photo = self._value(
+            chat,
+            "photo",
+        )
+
+        has_photo = photo is not None
 
         return {
             "id": chat_id,
@@ -190,7 +298,7 @@ class ChatService:
                 "username",
             ),
             "chat_type": chat_type,
-            "photo": None,
+            "photo": has_photo,
             "unread_count": unread_count,
             "pinned": pinned,
             "archived": archived,
