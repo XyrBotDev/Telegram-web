@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+from typing import Any
+
 from backend.core.exceptions import SessionError
+from backend.core.pyrogram_client import pyrogram_manager
 from backend.core.sessions import session_manager
-from backend.core.telegram import telegram_manager
 
 
 class SearchService:
-    """Handle Telegram search operations."""
+    """Handle Telegram search operations through Pyrogram."""
 
-    def _get_client(self, session_id: str):
+    async def _get_client(self, session_id: str):
         session = session_manager.get(session_id)
 
         if session is None:
@@ -16,14 +18,28 @@ class SearchService:
                 "Telefarm session has expired."
             )
 
-        client = telegram_manager.get_client(
-            session_id
-        )
+        if not session.metadata.get("authenticated"):
+            raise SessionError(
+                "Telefarm session is not authenticated."
+            )
+
+        client = pyrogram_manager.get_client(session_id)
 
         if client is None:
-            raise SessionError(
-                "Telegram client is not available."
+            telegram_session = session.telegram_session
+
+            if not telegram_session:
+                raise SessionError(
+                    "Telegram session is not available."
+                )
+
+            client = await pyrogram_manager.create_client(
+                session_key=session_id,
+                session_string=telegram_session,
             )
+
+        if not client.is_connected:
+            await client.connect()
 
         return client
 
@@ -33,38 +49,79 @@ class SearchService:
         query: str,
         chat_id: int | str | None = None,
         limit: int = 50,
-    ) -> list[dict]:
-        """Search messages using Telegram's search functionality."""
-        client = self._get_client(session_id)
+    ) -> list[dict[str, Any]]:
+        """Search Telegram messages."""
 
-        messages = await client.get_messages(
-            entity=chat_id,
-            search=query,
-            limit=limit,
+        client = await self._get_client(session_id)
+
+        target_chat = (
+            int(chat_id)
+            if chat_id is not None
+            else None
         )
 
-        return [
-            {
-                "id": message.id,
-                "chat_id": getattr(
+        messages = []
+
+        async for message in client.search_messages(
+            chat_id=target_chat,
+            query=query,
+            limit=limit,
+        ):
+            messages.append(
+                self._serialize_message(message)
+            )
+
+        return messages
+
+    @staticmethod
+    def _serialize_message(message) -> dict[str, Any]:
+        date = getattr(message, "date", None)
+
+        chat = getattr(
+            message,
+            "chat",
+            None,
+        )
+
+        from_user = getattr(
+            message,
+            "from_user",
+            None,
+        )
+
+        return {
+            "id": getattr(
+                message,
+                "id",
+                None,
+            ),
+            "chat_id": getattr(
+                chat,
+                "id",
+                None,
+            ),
+            "sender_id": getattr(
+                from_user,
+                "id",
+                None,
+            ),
+            "text": (
+                getattr(message, "text", None)
+                or getattr(message, "caption", None)
+            ),
+            "date": (
+                date.isoformat()
+                if date
+                else None
+            ),
+            "outgoing": bool(
+                getattr(
                     message,
-                    "chat_id",
-                    None,
-                ),
-                "sender_id": getattr(
-                    message,
-                    "sender_id",
-                    None,
-                ),
-                "text": message.text,
-                "date": (
-                    message.date.isoformat()
-                    if message.date
-                    else None
-                ),
-            }
-            for message in messages
-        ]
+                    "outgoing",
+                    False,
+                )
+            ),
+        }
 
 
 search_service = SearchService()
