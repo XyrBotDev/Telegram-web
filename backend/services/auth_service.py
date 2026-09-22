@@ -75,9 +75,11 @@ class AuthService:
             await pyrogram_manager.disconnect(
                 app_session.session_id
             )
+
             session_manager.remove(
                 app_session.session_id
             )
+
             raise
 
     async def verify_code(
@@ -125,6 +127,9 @@ class AuthService:
                 "session_id": session_id,
                 "requires_code": False,
                 "requires_password": True,
+                "code_type": None,
+                "next_type": None,
+                "code_timeout": None,
                 "message": result["message"],
             }
 
@@ -285,6 +290,9 @@ class AuthService:
             "session_id": session_id,
             "requires_code": False,
             "requires_password": False,
+            "code_type": None,
+            "next_type": None,
+            "code_timeout": None,
             "message": "Authentication successful.",
         }
 
@@ -292,10 +300,26 @@ class AuthService:
     def _serialize_user(user) -> dict:
         return {
             "id": user.id,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "username": user.username,
-            "phone": user.phone,
+            "first_name": getattr(
+                user,
+                "first_name",
+                None,
+            ),
+            "last_name": getattr(
+                user,
+                "last_name",
+                None,
+            ),
+            "username": getattr(
+                user,
+                "username",
+                None,
+            ),
+            "phone": getattr(
+                user,
+                "phone",
+                None,
+            ),
         }
 
 
