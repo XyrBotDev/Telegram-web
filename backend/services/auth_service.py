@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from backend.core.exceptions import (
     SessionError,
     TelegramAuthenticationError,
@@ -7,6 +9,9 @@ from backend.core.exceptions import (
 from backend.core.pyrogram_client import pyrogram_manager
 from backend.core.sessions import session_manager
 from backend.services.pyrogram_service import pyrogram_auth_service
+
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -185,14 +190,26 @@ class AuthService:
         if not session.metadata.get("authenticated"):
             return None
 
-        client = pyrogram_manager.get_client(
-            session_id
-        )
-
-        if client is None:
-            return None
-
         try:
+            client = pyrogram_manager.get_client(
+                session_id
+            )
+
+            if client is None:
+                telegram_session = session.telegram_session
+
+                if not telegram_session:
+                    logger.warning(
+                        "No temporary Telegram session available "
+                        "for authenticated session."
+                    )
+                    return None
+
+                client = await pyrogram_manager.create_client(
+                    session_key=session_id,
+                    session_string=telegram_session,
+                )
+
             if not client.is_connected:
                 await client.connect()
 
@@ -204,6 +221,10 @@ class AuthService:
             return self._serialize_user(user)
 
         except Exception as exc:
+            logger.exception(
+                "Unable to retrieve authenticated Telegram user."
+            )
+
             raise TelegramAuthenticationError(
                 "Unable to retrieve the authenticated Telegram user."
             ) from exc
