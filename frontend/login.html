@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Telefarm Login</title>
+
+    <link rel="stylesheet" href="/frontend/css/variables.css">
+    <link rel="stylesheet" href="/frontend/css/login.css">
+</head>
+
+<body>
+
+    <main class="login-page">
+
+        <section class="login-card">
+
+            <div class="login-brand">
+                <div class="login-logo">T</div>
+                <h1>Telefarm</h1>
+            </div>
+
+            <p class="login-subtitle">
+                Sign in with your Telegram account
+            </p>
+
+            <div
+                id="login-message"
+                class="login-message hidden"
+            ></div>
+
+            <!-- Phone step -->
+            <form id="phone-form">
+
+                <label for="phone-number">
+                    Phone number
+                </label>
+
+                <input
+                    id="phone-number"
+                    type="tel"
+                    placeholder="+1234567890"
+                    autocomplete="tel"
+                    required
+                >
+
+                <button
+                    id="phone-button"
+                    type="submit"
+                >
+                    Continue
+                </button>
+
+            </form>
+
+            <!-- Verification code step -->
+            <form
+                id="code-form"
+                class="hidden"
+            >
+
+                <label for="verification-code">
+                    Verification code
+                </label>
+
+                <input
+                    id="verification-code"
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    placeholder="Enter verification code"
+                    required
+                >
+
+                <button
+                    id="code-button"
+                    type="submit"
+                >
+                    Verify
+                </button>
+
+            </form>
+
+            <!-- 2FA step -->
+            <form
+                id="password-form"
+                class="hidden"
+            >
+
+                <label for="two-factor-password">
+                    Two-factor password
+                </label>
+
+                <input
+                    id="two-factor-password"
+                    type="password"
+                    autocomplete="current-password"
+                    placeholder="Enter your 2FA password"
+                    required
+                >
+
+                <button
+                    id="password-button"
+                    type="submit"
+                >
+                    Sign in
+                </button>
+
+            </form>
+
+            <div
+                id="login-loading"
+                class="login-loading hidden"
+            >
+                Processing...
+            </div>
+
+        </section>
+
+    </main>
+
+    <script type="module" src="/frontend/js/auth.js"></script>
+
+</body>
+</html>
