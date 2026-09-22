@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Telefarm</title>
+
+    <link rel="stylesheet" href="/frontend/css/variables.css">
+    <link rel="stylesheet" href="/frontend/css/main.css">
+    <link rel="stylesheet" href="/frontend/css/sidebar.css">
+    <link rel="stylesheet" href="/frontend/css/chat.css">
+</head>
+
+<body>
+    <div class="app" id="app">
+
+        <aside class="sidebar" id="sidebar">
+
+            <header class="sidebar-header">
+                <div class="brand">
+                    <div class="brand-icon">T</div>
+                    <span>Telefarm</span>
+                </div>
+
+                <button
+                    class="icon-button"
+                    id="theme-toggle"
+                    type="button"
+                    title="Toggle theme"
+                    aria-label="Toggle theme"
+                >
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/>
+                        <circle cx="12" cy="12" r="4"/>
+                    </svg>
+                </button>
+            </header>
+
+            <div class="search-box">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="7"/>
+                    <path d="m16 16 5 5"/>
+                </svg>
+
+                <input
+                    id="chat-search"
+                    type="search"
+                    placeholder="Search"
+                    autocomplete="off"
+                >
+            </div>
+
+            <div class="chat-list" id="chat-list">
+                <div class="loading-state">
+                    Loading chats...
+                </div>
+            </div>
+
+        </aside>
+
+        <main class="chat-panel" id="chat-panel">
+
+            <header class="chat-header">
+
+                <button
+                    class="icon-button mobile-back"
+                    id="mobile-back"
+                    type="button"
+                    aria-label="Back"
+                >
+                    <svg viewBox="0 0 24 24">
+                        <path d="m15 18-6-6 6-6"/>
+                    </svg>
+                </button>
+
+                <div class="chat-avatar" id="chat-avatar">
+                    T
+                </div>
+
+                <div class="chat-header-info">
+                    <div class="chat-title" id="chat-title">
+                        Select a chat
+                    </div>
+
+                    <div class="chat-status" id="chat-status">
+                        Select a conversation to start
+                    </div>
+                </div>
+
+            </header>
+
+            <section
+                class="messages"
+                id="messages"
+            >
+                <div class="empty-state">
+                    <div class="empty-icon">T</div>
+                    <h2>Telefarm</h2>
+                    <p>Select a chat to view messages.</p>
+                </div>
+            </section>
+
+            <footer class="message-composer">
+
+                <input
+                    id="message-input"
+                    type="text"
+                    placeholder="Write a message..."
+                    autocomplete="off"
+                    disabled
+                >
+
+                <button
+                    class="send-button"
+                    id="send-button"
+                    type="button"
+                    aria-label="Send message"
+                    disabled
+                >
+                    <svg viewBox="0 0 24 24">
+                        <path d="M22 
