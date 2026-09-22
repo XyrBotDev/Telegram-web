@@ -185,14 +185,28 @@ class AuthService:
         if not session.metadata.get("authenticated"):
             return None
 
-        try:
-            user = await pyrogram_auth_service.get_me(
-                session_id
-            )
-        except Exception:
+        client = pyrogram_manager.get_client(
+            session_id
+        )
+
+        if client is None:
             return None
 
-        return self._serialize_user(user)
+        try:
+            if not client.is_connected:
+                await client.connect()
+
+            user = await client.get_me()
+
+            if user is None:
+                return None
+
+            return self._serialize_user(user)
+
+        except Exception as exc:
+            raise TelegramAuthenticationError(
+                "Unable to retrieve the authenticated Telegram user."
+            ) from exc
 
     async def _complete_authentication(
         self,
@@ -205,9 +219,24 @@ class AuthService:
                 "Authentication session has expired."
             )
 
-        user = await pyrogram_auth_service.get_me(
+        client = pyrogram_manager.get_client(
             session_id
         )
+
+        if client is None:
+            raise SessionError(
+                "Pyrogram authentication client is unavailable."
+            )
+
+        if not client.is_connected:
+            await client.connect()
+
+        user = await client.get_me()
+
+        if user is None:
+            raise TelegramAuthenticationError(
+                "Unable to retrieve the authenticated Telegram account."
+            )
 
         telegram_session = (
             await pyrogram_auth_service.export_session(
