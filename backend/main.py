@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.api import (
     auth,
@@ -17,6 +20,10 @@ from backend.api import (
 )
 from backend.config import settings
 from backend.core.telegram import telegram_manager
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = BASE_DIR / "frontend"
 
 
 @asynccontextmanager
@@ -55,15 +62,21 @@ app.include_router(settings_api.router)
 app.include_router(websocket.router)
 
 
-@app.get("/")
-async def root() -> dict:
-    """Return basic application information."""
+# Serve frontend static files.
+app.mount(
+    "/frontend",
+    StaticFiles(directory=FRONTEND_DIR),
+    name="frontend",
+)
 
-    return {
-        "name": "Telefarm",
-        "status": "online",
-        "version": "1.0.0",
-    }
+
+@app.get("/")
+async def root():
+    """Serve the Telefarm web application."""
+
+    return FileResponse(
+        FRONTEND_DIR / "index.html"
+    )
 
 
 @app.get("/health")
