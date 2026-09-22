@@ -62,7 +62,7 @@ app.include_router(settings_api.router)
 app.include_router(websocket.router)
 
 
-# Serve frontend static files.
+# Serve frontend assets.
 app.mount(
     "/frontend",
     StaticFiles(directory=FRONTEND_DIR),
@@ -72,10 +72,19 @@ app.mount(
 
 @app.get("/")
 async def root():
-    """Serve the Telefarm web application."""
+    """Serve the main Telefarm application."""
 
     return FileResponse(
         FRONTEND_DIR / "index.html"
+    )
+
+
+@app.get("/login.html")
+async def login_page():
+    """Serve the Telefarm login page."""
+
+    return FileResponse(
+        FRONTEND_DIR / "login.html"
     )
 
 
