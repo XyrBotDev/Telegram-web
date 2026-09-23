@@ -1,31 +1,48 @@
 import {
     getChat,
-    getMessages
+    getMessages,
+    getChatPhotoUrl
 } from "./api.js";
 
 const app =
-    document.getElementById("app");
+    document.getElementById(
+        "app"
+    );
 
 const chatTitle =
-    document.getElementById("chat-title");
+    document.getElementById(
+        "chat-title"
+    );
 
 const chatStatus =
-    document.getElementById("chat-status");
+    document.getElementById(
+        "chat-status"
+    );
 
 const chatAvatar =
-    document.getElementById("chat-avatar");
+    document.getElementById(
+        "chat-avatar"
+    );
 
 const messagesElement =
-    document.getElementById("messages");
+    document.getElementById(
+        "messages"
+    );
 
 const messageInput =
-    document.getElementById("message-input");
+    document.getElementById(
+        "message-input"
+    );
 
 const sendButton =
-    document.getElementById("send-button");
+    document.getElementById(
+        "send-button"
+    );
 
 const mobileBack =
-    document.getElementById("mobile-back");
+    document.getElementById(
+        "mobile-back"
+    );
 
 function escapeHtml(value) {
     return String(value ?? "")
@@ -37,25 +54,74 @@ function escapeHtml(value) {
 }
 
 function getInitial(title) {
-    if (!title) {
-        return "T";
-    }
-
-    return title
-        .trim()
-        .charAt(0)
-        .toUpperCase();
+    return (
+        String(title || "T")
+            .trim()
+            .charAt(0)
+            .toUpperCase() || "T"
+    );
 }
 
-function formatTime(dateValue) {
+function setChatAvatar(chat) {
+    chatAvatar.innerHTML =
+        "";
+
+    if (chat.photo) {
+        const image =
+            document.createElement(
+                "img"
+            );
+
+        image.src =
+            getChatPhotoUrl(
+                chat.id
+            );
+
+        image.alt =
+            chat.title ||
+            "Chat";
+
+        image.className =
+            "chat-avatar-image";
+
+        image.onerror =
+            () => {
+                chatAvatar.textContent =
+                    getInitial(
+                        chat.title
+                    );
+            };
+
+        chatAvatar.appendChild(
+            image
+        );
+
+        return;
+    }
+
+    chatAvatar.textContent =
+        getInitial(
+            chat.title
+        );
+}
+
+function formatTime(
+    dateValue
+) {
     if (!dateValue) {
         return "";
     }
 
     const date =
-        new Date(dateValue);
+        new Date(
+            dateValue
+        );
 
-    if (Number.isNaN(date.getTime())) {
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
         return "";
     }
 
@@ -68,8 +134,11 @@ function formatTime(dateValue) {
     );
 }
 
-function renderMessages(messages) {
-    messagesElement.innerHTML = "";
+function renderMessages(
+    messages
+) {
+    messagesElement.innerHTML =
+        "";
 
     if (!messages.length) {
         messagesElement.innerHTML = `
@@ -86,13 +155,17 @@ function renderMessages(messages) {
 
     for (const message of ordered) {
         const row =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
         row.className =
             "message-row";
 
         if (message.outgoing) {
-            row.classList.add("outgoing");
+            row.classList.add(
+                "outgoing"
+            );
         }
 
         const text =
@@ -102,11 +175,15 @@ function renderMessages(messages) {
             <div class="message-bubble">
 
                 <div class="message-text">
-                    ${escapeHtml(text)}
+                    ${escapeHtml(
+                        text
+                    )}
                 </div>
 
                 <div class="message-meta">
-                    ${formatTime(message.date)}
+                    ${formatTime(
+                        message.date
+                    )}
                     ${
                         message.edited
                             ? " · edited"
@@ -117,27 +194,37 @@ function renderMessages(messages) {
             </div>
         `;
 
-        messagesElement.appendChild(row);
+        messagesElement.appendChild(
+            row
+        );
     }
 
     messagesElement.scrollTop =
         messagesElement.scrollHeight;
 }
 
-async function openChat(chat) {
-    app.classList.add("chat-open");
+async function openChat(
+    chat
+) {
+    app.classList.add(
+        "chat-open"
+    );
 
     chatTitle.textContent =
-        chat.title || "Unknown";
-
-    chatAvatar.textContent =
-        getInitial(chat.title);
+        chat.title ||
+        "Unknown";
 
     chatStatus.textContent =
-        chat.chat_type || "";
+        chat.chat_type ||
+        "";
 
-    messageInput.disabled = false;
-    sendButton.disabled = false;
+    setChatAvatar(chat);
+
+    messageInput.disabled =
+        false;
+
+    sendButton.disabled =
+        false;
 
     messagesElement.innerHTML = `
         <div class="loading-state">
@@ -147,33 +234,50 @@ async function openChat(chat) {
 
     try {
         const response =
-            await getChat(chat.id);
+            await getChat(
+                chat.id
+            );
 
-        if (response.chat) {
-            chatTitle.textContent =
-                response.chat.title ||
-                chat.title ||
-                "Unknown";
+        const currentChat =
+            response.chat ||
+            chat;
 
-            chatAvatar.textContent =
-                getInitial(
-                    response.chat.title ||
-                    chat.title
-                );
-        }
+        chatTitle.textContent =
+            currentChat.title ||
+            chat.title ||
+            "Unknown";
 
-        const messages =
+        chatStatus.textContent =
+            currentChat.chat_type ||
+            chat.chat_type ||
+            "";
+
+        setChatAvatar(
+            currentChat
+        );
+
+        const responseMessages =
             await getMessages(
                 chat.id,
                 50
             );
 
-        renderMessages(messages);
+        const messages =
+            responseMessages.messages ||
+            [];
+
+        renderMessages(
+            messages
+        );
 
     } catch (error) {
         messagesElement.innerHTML = `
             <div class="empty-state">
-                <p>${escapeHtml(error.message)}</p>
+                <p>
+                    ${escapeHtml(
+                        error.message
+                    )}
+                </p>
             </div>
         `;
 
@@ -184,16 +288,23 @@ async function openChat(chat) {
 window.addEventListener(
     "telefarm:chat-selected",
     event => {
-        openChat(event.detail);
+        openChat(
+            event.detail
+        );
     }
 );
 
 mobileBack.addEventListener(
     "click",
     () => {
-        app.classList.remove("chat-open");
+        app.classList.remove(
+            "chat-open"
+        );
 
-        messageInput.disabled = true;
-        sendButton.disabled = true;
+        messageInput.disabled =
+            true;
+
+        sendButton.disabled =
+            true;
     }
 );
